@@ -27,23 +27,26 @@ def upload_file():
 def analyze_data():
     filename = request.json['filename']
     result = request.json['result']
+    parameters = request.json['parameters']
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     df = pd.read_csv(filepath, delimiter=',')
-    print(result)
-    analysis_result = perform_regression(filepath, result)
+    analysis_result = perform_regression(df, result, parameters)
     return jsonify(analysis_result)
 
-def perform_regression(filepath, result):
-    # Load the CSV file
+@app.route('/correlate', methods=['POST'])
+def correlate_data():
+    filename = request.json['filename']
+    result = request.json['result']
+    parameters = request.json['parameters']
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     df = pd.read_csv(filepath, delimiter=',')
+    correlation_result = perform_correlation(df, result, parameters)
+    return jsonify(correlation_result)
 
-    # Find the index of the "result" column
-    result_index = df.columns.tolist().index(result)
-
+def perform_regression(df, result, parameters):
     # Extract the independent variables (parameters) and the dependent variable (result)
-    param_columns = [col for i, col in enumerate(df.columns) if i != result_index]
-    X = df[param_columns].values
-    y = df.iloc[:, result_index].values
+    X = df[parameters].values
+    y = df[result].values
 
     # Add a column of ones to X to account for the intercept term
     X = np.concatenate([np.ones((X.shape[0], 1)), X], axis=1)
@@ -52,8 +55,16 @@ def perform_regression(filepath, result):
     coefficients = np.linalg.inv(X.T @ X) @ X.T @ y
 
     # Create a dictionary for the results
-    result_dict = {param: int(coefficients[i + 1] * 10) for i, param in enumerate(param_columns)}
+    result_dict = {param: coefficients[i + 1] for i, param in enumerate(parameters)}
     return result_dict
+
+def perform_correlation(df, result, parameters):
+    correlations = {}
+    for param in parameters:
+        if param != result:
+            correlation = df[param].corr(df[result])
+            correlations[param] = correlation
+    return correlations
 
 if __name__ == '__main__':
     app.run(debug=True)
