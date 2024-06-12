@@ -29,13 +29,13 @@ def analyze_data():
     result = request.json['result']
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     df = pd.read_csv(filepath, delimiter=',')
-    
+    print(result)
     analysis_result = perform_regression(filepath, result)
     return jsonify(analysis_result)
 
 def perform_regression(filepath, result):
     # Load the CSV file
-    df = pd.read_csv(filepath, delimiter='\t')
+    df = pd.read_csv(filepath, delimiter=',')
 
     # Find the index of the "result" column
     result_index = df.columns.tolist().index(result)
