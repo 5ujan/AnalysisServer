@@ -19,7 +19,7 @@ def upload_file():
     if file:
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
         file.save(filepath)
-        df = pd.read_csv(filepath, delimiter='\t')  # Set delimiter to '\t' for tab-separated values
+        df = pd.read_csv(filepath, delimiter=',')  # Set delimiter to '\t' for tab-separated values
         columns = df.columns.tolist()
         return jsonify({'filename': file.filename, 'columns': columns})
 
