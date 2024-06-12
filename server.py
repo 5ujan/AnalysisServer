@@ -6,7 +6,7 @@ import os
 
 app = Flask(__name__)
 CORS(app)
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 @app.route('/upload', methods=['POST'])
@@ -27,14 +27,13 @@ def upload_file():
 def analyze_data():
     filename = request.json['filename']
     result = request.json['result']
-    print(result)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     df = pd.read_csv(filepath, delimiter='\t')
     
-    C = perform_regression(filepath,result)
-    return jsonify(C)
+    analysis_result = perform_regression(filepath, result)
+    return jsonify(analysis_result)
 
-def perform_regression(filepath,result):
+def perform_regression(filepath, result):
     # Load the CSV file
     df = pd.read_csv(filepath, delimiter='\t')
 
@@ -44,7 +43,6 @@ def perform_regression(filepath,result):
     # Extract the independent variables (parameters) and the dependent variable (result)
     param_columns = [col for i, col in enumerate(df.columns) if i != result_index]
     X = df[param_columns].values
-    print(X)
     y = df.iloc[:, result_index].values
 
     # Add a column of ones to X to account for the intercept term
@@ -52,14 +50,10 @@ def perform_regression(filepath,result):
 
     # Perform the linear regression using the normal equation
     coefficients = np.linalg.inv(X.T @ X) @ X.T @ y
-    total_effect = np.abs(coefficients[1:]).sum()
+
     # Create a dictionary for the results
-    result = {}
-    for i, param in enumerate(param_columns):
-        result[f'{param}'] = int(coefficients[i + 1]*10)
-
-    return result
-
+    result_dict = {param: int(coefficients[i + 1] * 10) for i, param in enumerate(param_columns)}
+    return result_dict
 
 if __name__ == '__main__':
     app.run(debug=True)
