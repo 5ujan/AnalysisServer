@@ -28,7 +28,7 @@ def analyze_data():
     filename = request.json['filename']
     result = request.json['result']
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    df = pd.read_csv(filepath, delimiter='\t')
+    df = pd.read_csv(filepath, delimiter=',')
     
     analysis_result = perform_regression(filepath, result)
     return jsonify(analysis_result)
