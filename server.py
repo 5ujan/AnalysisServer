@@ -63,7 +63,7 @@ def perform_correlation(df, result, parameters):
     for param in parameters:
         if param != result:
             correlation = df[param].corr(df[result])
-            correlations[param] = correlation
+            correlations[param] = f"{correlation:.2f}"
     return correlations
 
 if __name__ == '__main__':
