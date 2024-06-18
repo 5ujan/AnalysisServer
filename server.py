@@ -55,7 +55,7 @@ def perform_regression(df, result, parameters):
     coefficients = np.linalg.inv(X.T @ X) @ X.T @ y
 
     # Create a dictionary for the results
-    result_dict = {param: coefficients[i + 1] for i, param in enumerate(parameters)}
+    result_dict = {param: round(coefficients[i + 1], 2) for i, param in enumerate(parameters)}
     return result_dict
 
 def perform_correlation(df, result, parameters):
