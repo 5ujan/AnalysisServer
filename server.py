@@ -15,6 +15,10 @@ app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 load_dotenv()
 
+@app.route("/")
+def hello():
+    return "Hello, World!"
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -98,4 +102,4 @@ def perform_correlation(df, result, parameters):
     return correlations
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True,host='0.0.0.0', port=5000)
