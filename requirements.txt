@@ -1,3 +1,4 @@
+python == 3.10 
 flask
 flask-cors
 numpy
@@ -5,5 +6,4 @@ pandas
 langchain
 langchain_experimental
 python-dotenv
-google-generative-ai
 langchain-google-genai
