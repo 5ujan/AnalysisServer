@@ -3,11 +3,17 @@ from flask_cors import CORS
 import pandas as pd
 import numpy as np
 import os
+from langchain_experimental.agents import create_csv_agent
+from langchain_google_genai import ChatGoogleGenerativeAI
+from dotenv import load_dotenv
+import os
+import google.generativeai as genai
 
 app = Flask(__name__)
 CORS(app)
 app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+load_dotenv()
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -42,6 +48,31 @@ def correlate_data():
     df = pd.read_csv(filepath, delimiter=',')
     correlation_result = perform_correlation(df, result, parameters)
     return jsonify(correlation_result)
+
+@app.route('/trends', methods=['GET'])
+def get_trends():
+    filename = request.args.get('filename')
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    model = genai.GenerativeModel('gemini-pro')
+
+    # Example of trend extraction
+    trends = []
+    llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0, max_output_tokens=2048)
+    agent = create_csv_agent(llm, filepath, verbose=True, allow_dangerous_code=True)
+    user_question = "what the trends in the data"
+    response = model.generate_content(
+            [user_question + "Based on the apriori association rules provided,find interesting trends,patterns and insights which can help the related organization in layman language. Use percentage metrices if you can. make it simple."]
+        ).text
+    trends.append(response)
+    return jsonify({"trends": trends})
+
+@app.route('/gemini',methods=['POST'])
+def get_gemini():
+    prompt = request.json['prompt']
+    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+    model = genai.GenerativeModel('gemini-pro')
+    response = model.generate_content([prompt]).text
+    return jsonify({"response": response})
 
 def perform_regression(df, result, parameters):
     # Extract the independent variables (parameters) and the dependent variable (result)
