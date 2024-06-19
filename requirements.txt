@@ -2,3 +2,7 @@ flask
 flask-cors
 numpy
 pandas
+langchain_experimental
+python-dotenv
+google-generative-ai
+langchain-google-genai
