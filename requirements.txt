@@ -6,3 +6,7 @@ langchain
 langchain_experimental
 python-dotenv
 langchain-google-genai
+kmodes
+kneed
+mlxtend
+torch

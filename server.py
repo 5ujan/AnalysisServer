@@ -12,13 +12,17 @@ from trends import getTrends
 from sklearn.preprocessing import MinMaxScaler
 import json
 
-
+import warnings
+from MLP import data_maker, MLP, modelselector
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 app = Flask(__name__)
 CORS(app)
 app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-load_dotenv()
 
+load_dotenv()
+model = None
+filepath = ''
 def load_data(file_path):
     data = pd.read_csv(file_path)
     return data
@@ -47,6 +51,7 @@ def clean_data(data):
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    global filepath
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
     file = request.files['file']
@@ -56,7 +61,7 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
         file.save(filepath)
         df = pd.read_csv(filepath, delimiter=',')  # Set delimiter to '\t' for tab-separated values
-        columns = df.columns.tolist()
+        columns = df.select_dtypes(include=['number']).columns.tolist()
         return jsonify({'filename': file.filename, 'columns': columns})
 
 @app.route('/analyze', methods=['POST'])
@@ -114,10 +119,65 @@ def get_trends():
 @app.route('/gemini',methods=['POST'])
 def get_gemini():
     prompt = request.json['prompt']
+    prev = request.json['previous']
+    prev = prev[-2:] if len(prev) >= 2 else prev
+    prev = json.dumps(prev)
+    msg = "Last two responses were:"+ prev+ "New prompt:"+prompt
+    # print(msg)
     genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
     model = genai.GenerativeModel('gemini-pro')
-    response = model.generate_content([prompt]).text
+    response = model.generate_content([msg]).text
     return jsonify({"response": response})
+
+@app.route('/trendsquery',methods=['POST'])
+def get_trendquery():
+    global filepath
+    prompt = request.json['prompt']
+    prev = request.json['previous']
+    prev = prev[-2:] if len(prev) >= 2 else prev
+    prev = json.dumps(prev)
+    # print(msg)
+    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+    model = genai.GenerativeModel('gemini-pro')
+    llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0, max_output_tokens=2048)
+    agent = create_csv_agent(llm, filepath, verbose=True, allow_dangerous_code=True)
+    chain = agent.run(prompt)
+    msg = "Last two responses were:"+ prev+ "New prompt:"+prompt+"langchain output:"+chain
+    response = model.generate_content([msg]).text
+    return jsonify({"response": response})
+
+
+@app.route('/train', methods=['POST'])
+def get_model():
+    global model
+    filename = request.json['filename']
+    selectedparam = request.json['selectedParams']
+    selectedcolumn = request.json['selectedColumn']
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    column_indices = []
+    df = pd.read_csv(filepath, delimiter=',')
+    for param in selectedparam:
+            index = df.columns.get_loc(param)
+            column_indices.append(index)
+    resultindex =df.columns.get_loc(selectedcolumn)
+    result =[resultindex]
+
+    xnum, xcat, y, scalerx, scalery, encoding_dicts = data_maker(column_indices, result, filepath)
+    model=MLP(xnum, xcat, y, scalerx, scalery, encoding_dicts,2)
+    model.train_model()
+    Val_loss = model.validation_loss_val
+    numpy_value = Val_loss.numpy()
+    scalar_value = numpy_value.item()
+    print(scalar_value)
+    return jsonify({"response": scalar_value})
+@app.route('/predict',methods =['POST'])
+def give_prediction():
+    fieldValues = request.json['fieldValues']
+    print(fieldValues)
+    values_list = [float(value) for value in fieldValues.values()]
+    print(values_list)
+    predicted = model.generate(values_list)
+    return jsonify({"response": predicted[0][0]})
 
 def perform_regression(df, result, parameters):
     # Extract the independent variables (parameters) and the dependent variable (result)
@@ -141,6 +201,8 @@ def perform_correlation(df, result, parameters):
             correlation = df[param].corr(df[result])
             correlations[param] = f"{correlation:.2f}"
     return correlations
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

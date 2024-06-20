@@ -1,26 +1,19 @@
 #importing necessary modules and libraries
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import math
-import seaborn as sns
+
+
 from sklearn.cluster import KMeans
-from mlxtend.preprocessing import TransactionEncoder
 from mlxtend.frequent_patterns import apriori, association_rules
 from sklearn.decomposition import PCA
 from kneed import KneeLocator
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
 from sklearn.feature_selection import VarianceThreshold
-import seaborn as sns
 from itertools import chain
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import MinMaxScaler
 from kmodes.kprototypes import KPrototypes
 import random
-from scipy.spatial.distance import hamming
 
 global_rule_count = 0
 def load_data(file_path):
@@ -329,7 +322,7 @@ def manage_rules(important_rules_by_cluster,count=0):
     for cluster, rules in important_rules_by_cluster.items():
         # print(cluster)
         # print(rules)
-        filtered_rules = filter_based_on_count(rules, global_rule_count)
+        filtered_rules = filter_based_on_count(rules, 0)
         if cluster in filtered_dict:
             filtered_dict.append(filtered_rules)
         else:
@@ -341,16 +334,11 @@ def manage_rules(important_rules_by_cluster,count=0):
     # print(thorai_rules)
     for rule in filtered_rules:
         print(rule)
-    global_rule_count+= 1
 
 
 
     return thorai_rules
     # return filtered_rules
-
-def call_rules(important_rules_by_cluster):
-    count+= 1
-    manage_rules(important_rules_by_cluster,count)
 
     return 
 def getTrends(data):
