@@ -8,6 +8,10 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 import os
 import google.generativeai as genai
+from trends import getTrends
+from sklearn.preprocessing import MinMaxScaler
+import json
+
 
 app = Flask(__name__)
 CORS(app)
@@ -15,9 +19,31 @@ app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 load_dotenv()
 
-@app.route("/")
-def hello():
-    return "Hello, World!"
+def load_data(file_path):
+    data = pd.read_csv(file_path)
+    return data
+
+def clean_data(data):
+    # Cleaning unnecessary columns
+    
+    id_columns = [col for col in data.columns if 'id' in col.lower()]
+    name_columns = [col for col in data.columns if 'name' in col.lower()]
+    total_columns = [col for col in data.columns if 'total' in col.lower()]
+    result_columns = [col for col in data.columns if 'outcome'  in col.lower()]
+    columns_to_drop =  id_columns + name_columns + total_columns+result_columns
+    data.drop(columns_to_drop, axis=1, inplace=True)
+    # Convert object columns to categorical columns
+    object_columns = data.select_dtypes(include=['object']).columns
+    for col in object_columns:
+        data[col] = data[col].astype('category')
+    # Handle missing values for numeric columns (impute with mean)
+    numeric_columns = data.select_dtypes(include=['int64', 'float64']).columns
+    data[numeric_columns] = data[numeric_columns].fillna(data[numeric_columns].mean())
+    # Handle missing values for categorical columns (impute with mode)
+    for col in data.select_dtypes(include=['object']).columns:
+        data[col] = data[col].fillna(data[col].mode()[0])
+    return data
+
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -53,22 +79,37 @@ def correlate_data():
     correlation_result = perform_correlation(df, result, parameters)
     return jsonify(correlation_result)
 
-@app.route('/trends', methods=['GET'])
+@app.route('/trends', methods=['POST'])
 def get_trends():
-    filename = request.args.get('filename')
+    print(request.get_json())
+    print("reaches here")
+    filename = request.json['filename']
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     model = genai.GenerativeModel('gemini-pro')
 
     # Example of trend extraction
-    trends = []
+    
     llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0, max_output_tokens=2048)
-    agent = create_csv_agent(llm, filepath, verbose=True, allow_dangerous_code=True)
+    # agent = create_csv_agent(llm, filepath, verbose=True, allow_dangerous_code=True)
     user_question = "what the trends in the data"
+    print(12121211341)
+
+
+    data = load_data(filepath)
+    data = clean_data(data)
+
+
+    aprioriTrend = getTrends(data) 
+    
+    at= json.dumps(aprioriTrend)
+    print(aprioriTrend)
+    response = aprioriTrend
+    print("reaches here")
     response = model.generate_content(
-            [user_question + "Based on the apriori association rules provided,find interesting trends,patterns and insights which can help the related organization in layman language. Use percentage metrices if you can. make it simple."]
+            [user_question + "Based on the apriori association rules provided,find interesting trends,patterns and insights which can help the related organization in layman language. Use percentage metrices if you can. make it simple: \n Apriori association:"+ at ]
         ).text
-    trends.append(response)
-    return jsonify({"trends": trends})
+    
+    return jsonify({"trends": response})
 
 @app.route('/gemini',methods=['POST'])
 def get_gemini():
@@ -102,4 +143,4 @@ def perform_correlation(df, result, parameters):
     return correlations
 
 if __name__ == '__main__':
-    app.run(debug=True,host='0.0.0.0', port=5000)
+    app.run(debug=True)
